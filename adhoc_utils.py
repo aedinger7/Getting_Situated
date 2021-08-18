@@ -7,6 +7,9 @@ from transformers import AutoModel, AutoTokenizer
 from transformers import RobertaTokenizer, RobertaForMaskedLM
 from transformers import logging
 
+import spacy
+nlp = spacy.load("en_core_web_sm") # pos tagging
+
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 mask = tokenizer.mask_token
 
