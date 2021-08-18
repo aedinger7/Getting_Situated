@@ -10,6 +10,9 @@ from transformers import logging
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 mask = tokenizer.mask_token
 
+import gensim.downloader
+glove_vectors = gensim.downloader.load('glove-twitter-25')
+
 def flatten_data(data, subdata):
     test = [[(x.lower().strip("(s)"), subdata[i][x]) for x in subdata[i]] for i in data if i in subdata] + [(i.lower().strip("(s)"), data[i]) for i in data if i not in subdata]
     return dict([i for sublist in test for i in sublist if type(sublist) == list] + [i for i in test if type(i) != list])
@@ -64,9 +67,7 @@ def compare_masks(masked_sentences, print_results=True, topk=20, model_names=['b
 #Reads and parses dunlosky norms data and returns dictionary
 def dunlosky_norms():
     raw = pd.read_csv("dunlosky_norms_unparsed.csv")
-
     parsed={}
-
     for n, line in raw.iterrows():
         if isinstance(line[0], str) and len(line[0].split((". "))) > 1:
             key = line[0].split((". "))[1]
