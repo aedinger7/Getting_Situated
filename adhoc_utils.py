@@ -52,7 +52,7 @@ def get_mask(text, model_name='bert-base-uncased', topk=10, show=True, lemmatize
         if lemmatize:
             return [(wn.lemmatize(tokenizer.decode([token]).strip()), mask_word[0][token].detach().numpy()[()]) for token in top_tokens]
         else:
-            return [tokenizer.decode([token]).strip(), mask_word[0][token].detach().numpy()[()] for token in top_tokens]
+            return [(tokenizer.decode([token]).strip(), mask_word[0][token].detach().numpy()[()]) for token in top_tokens]
     else:
         print("Text should contain \"<MASK>\" token")
         print(text)
