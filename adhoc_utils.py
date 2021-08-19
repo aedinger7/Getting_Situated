@@ -10,6 +10,9 @@ from transformers import logging
 import spacy
 nlp = spacy.load("en_core_web_sm") # pos tagging
 
+from nltk.stem import WordNetLemmatizer
+wn = WordNetLemmatizer()
+
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 mask = tokenizer.mask_token
 
@@ -23,7 +26,7 @@ def flatten_data(data, subdata):
 
 # Takes text containing "<MASK>" token and return topk results for masked token prediction.
 # print_results dictates whether to print filled sentences during function execution
-def get_mask(text, model_name='bert-base-uncased', topk=10, show=True):
+def get_mask(text, model_name='bert-base-uncased', topk=10, show=True, lemmatize=False):
     if model_name == "bert-base-uncased": 
         tokenizer = BertTokenizer.from_pretrained(model_name)
         model = BertForMaskedLM.from_pretrained(model_name, return_dict = True)
@@ -46,20 +49,23 @@ def get_mask(text, model_name='bert-base-uncased', topk=10, show=True):
                 word = tokenizer.decode([token]).strip()
                 new_sentence = text.replace(tokenizer.mask_token, word)
                 print("{0:.5f}".format(mask_word[0][token].detach().numpy()[()]), new_sentence)
-        return [(tokenizer.decode([token]).strip(), mask_word[0][token].detach().numpy()[()]) for token in top_tokens]
+        if lemmatize:
+            return [wn.lemmatize(tokenizer.decode([token]).strip()), mask_word[0][token].detach().numpy()[()] for token in top_tokens]
+        else:
+            return [tokenizer.decode([token]).strip(), mask_word[0][token].detach().numpy()[()] for token in top_tokens]
     else:
         print("Text should contain \"<MASK>\" token")
         print(text)
         return False
     
 
-# Takes a list of sentences with "<MASK>" tokens and returns a dataframe containing the scores for all 
-# masked token preductions
-def compare_masks(masked_sentences, print_results=True, topk=20, model_names=['bert-base-uncased', 'roberta-base']):
+# Takes a list of masked sentences and returns a dataframe containing the scores for all 
+# masked token predictions
+def compare_masks(masked_sentences, print_results=True, topk=20, model_names=['bert-base-uncased', 'roberta-base'], lemmatize=True):
     results = pd.DataFrame()
     for model_name in model_names:
         for sentence in masked_sentences:
-            masks = get_mask(sentence, topk=topk, model_name=model_name, print_results=print_results)
+            masks = get_mask(sentence, topk=topk, model_name=model_name, print_results=print_results, lemmatize=lemmatize)
             df = pd.DataFrame(masks, columns=["token", sentence])
             df = df.set_index("token")
             results = pd.concat((results, df), axis=1)
@@ -94,7 +100,7 @@ def dunlosky_norms():
             variations = []
             print(parsed[cue][response]['variations'])
             for word in parsed[cue][response]['variations']:
-                variations += [word.replace("(s)", ""), word.replace("(s)", "s")]
+                variations += [word.replace("(s)", ""), word.replace("(s)", "s"), wn.lemmatize(word)]
             parsed[cue][response]['variations'] += variations
             parsed[cue][response]['variations'] = list(set(parsed[cue][response]['variations']))
             print(parsed[cue][response]['variations'])
@@ -162,27 +168,36 @@ def dunlosky_masks():
 
 
 # Returns token scores for sentence with cases based on mask phrase formats
-def get_token_scores(sentence, model='BERT', topk=100):
+def get_token_scores(sentence, model='BERT', topk=100, lemmatize=True):
     if model=='BERT':
-        if "a <MASK>" in sentence:
+        if "a <MASK> is" in sentence:
             token_scores = {}
-            phrases = ["a <MASK>", "an <MASK>"]
-            for phrase in phrases:
-                token_scores[phrase] = {token:score for (token, score) in get_mask(sentence.replace("a <MASK>", phrase), show=False, topk=int((topk/2))) 
-                                        if nlp(token)[0].pos_ in ['NOUN', 'VERB']}
-            return dict_mean(token_scores[phrases[0]], token_scores[phrases[1]])
+            phrases = ["a <MASK> is", "an <MASK> is", "<MASK> are"]
+            k = int((topk/len(phrases)))
+            while len(token_scores<100):
+                for phrase in phrases:
+                    token_scores[phrase] = {token:score for (token, score) in get_mask(sentence.replace("a <MASK> is", phrase), show=False, topk=k, lemmatize=lemmatize) 
+                                            if nlp(token)[0].pos_ in ['NOUN', 'VERB']}
+                token_scores = dict_mean(token_scores[phrases[0]], token_scores[phrases[1]], token_scores[phrases[2]])
+                k+=10
+            token_scores = dict(sorted(token_scores.items(), key=lambda x: x[1], reverse=True)[:100])
+            return token_scores
+            
         else:
-            token_scores = {token:score for (token, score) in get_mask(sentence, topk=topk, show=False) 
+            token_scores = {token:score for (token, score) in get_mask(sentence, topk=topk, show=False, lemmatize=lemmatize) 
                             if nlp(token)[0].pos_ in ['NOUN', 'VERB']}
             return token_scores
     if model=='w2v':
         return w2v_getn(sentence)
     
+
 # Compares list of token scores from model responses with norms data
-def correct_responses(token_scores, category):
-    responses = parsed[category]
+def correct_responses(token_scores, category, data, limit = False):
+    responses = data[category]
     correct = []
     missing = []
+    if limit:
+        responses = dict(sorted(responses.items(), key=lambda x: x[1]['Total'], reverse=True)[:limit])
     for response in responses:
         if [i for i in responses[response]['variations'] if i.lower() in list(token_scores.keys())]:
             correct.append(response)
@@ -194,6 +209,7 @@ from itertools import chain, groupby
 from operator import itemgetter
 from collections import Counter
 
+
 # Get max of each item from 2 dictionaries
 def dict_max(data1, data2):
     get_key, get_val = itemgetter(0), itemgetter(1)
@@ -201,6 +217,7 @@ def dict_max(data1, data2):
     merged = {k: max(map(get_val, g)) for k, g in groupby(merged_data, key=get_key)}
     norm = sum(merged.values())
     return {key:merged[key]/norm for key in merged.keys()}
+
 
 # Get mean of items in 3 dictionaries, with weight=0 if item not in dict
 def dict_mean(A,B,C={}):
@@ -212,6 +229,7 @@ def dict_mean(A,B,C={}):
     return {k:sums[k]/div for k in sums}
 
 import re
+
 
 # Preprocesses masked sentence into tokens list for w2v similarity analysis
 # Helper function for w2v_getn
@@ -226,20 +244,25 @@ def w2v_pre(sentence):
             
     return tokens
 
+
 # Get topn similar tokens to sentence
-def w2v_getn(sentence, topn=100, model=glove_vectors):
+def w2v_getn(sentence, topn=100, model=glove_vectors, lemmatize=True):
     tokens = w2v_pre(sentence)
     print("w2v tokens:", tokens)
     length = 0
-    while length < 100:
-        out = {token:score for (token, score) in model.most_similar(tokens, topn=topn) if nlp(token)[0].pos_ in ['NOUN', 'VERB']}
+    while length < topn:
+        if lemmatize:
+            out = {wn.lemmatize(token):score for (token, score) in model.most_similar(tokens, topn=topn) if nlp(token)[0].pos_ in ['NOUN', 'VERB']}
+        else:
+            out = {token:score for (token, score) in model.most_similar(tokens, topn=topn) if nlp(token)[0].pos_ in ['NOUN', 'VERB']}
         length = len(out)
         topn += 10
     
     if len(out) > 100:
-        out = dict(sorted(out.items(), key=lambda x: x[1], reverse=True)[:100])
+        out = dict(sorted(out.items(), key=lambda x: x[1], reverse=True)[:topn])
         
     return out
+
 
 def intersect(s1, s2):
     return [x for x in s1 if x in s2]
