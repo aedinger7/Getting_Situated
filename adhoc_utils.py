@@ -50,7 +50,7 @@ def get_mask(text, model_name='bert-base-uncased', topk=10, show=True, lemmatize
                 new_sentence = text.replace(tokenizer.mask_token, word)
                 print("{0:.5f}".format(mask_word[0][token].detach().numpy()[()]), new_sentence)
         if lemmatize:
-            return [wn.lemmatize(tokenizer.decode([token]).strip()), mask_word[0][token].detach().numpy()[()] for token in top_tokens]
+            return [(wn.lemmatize(tokenizer.decode([token]).strip()), mask_word[0][token].detach().numpy()[()]) for token in top_tokens]
         else:
             return [tokenizer.decode([token]).strip(), mask_word[0][token].detach().numpy()[()] for token in top_tokens]
     else:
