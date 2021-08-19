@@ -3,9 +3,9 @@ import math
 from transformers import BertTokenizer, BertForMaskedLM
 from torch.nn import functional as F
 import torch
-from transformers import AutoModel, AutoTokenizer 
+# from transformers import AutoModel, AutoTokenizer 
 from transformers import RobertaTokenizer, RobertaForMaskedLM
-from transformers import logging
+# from transformers import logging
 
 import spacy
 nlp = spacy.load("en_core_web_sm") # pos tagging
@@ -174,7 +174,7 @@ def get_token_scores(sentence, model='BERT', topk=100, lemmatize=True):
             token_scores = {}
             phrases = ["a <MASK> is", "an <MASK> is", "<MASK> are"]
             k = int((topk/len(phrases)))
-            while len(token_scores<100):
+            while len(token_scores)<100:
                 for phrase in phrases:
                     token_scores[phrase] = {token:score for (token, score) in get_mask(sentence.replace("a <MASK> is", phrase), show=False, topk=k, lemmatize=lemmatize) 
                                             if nlp(token)[0].pos_ in ['NOUN', 'VERB']}
