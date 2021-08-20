@@ -249,14 +249,14 @@ def w2v_pre(sentence):
 def w2v_getn(sentence, topn=100, model=glove_vectors, lemmatize=True):
     tokens = w2v_pre(sentence)
     print("w2v tokens:", tokens)
-    length = 0
-    while length < topn:
+    out = {}
+    n = topn
+    while len(out) < topn:
         if lemmatize:
             out = {wn.lemmatize(token):score for (token, score) in model.most_similar(tokens, topn=topn) if nlp(token)[0].pos_ in ['NOUN', 'VERB']}
         else:
             out = {token:score for (token, score) in model.most_similar(tokens, topn=topn) if nlp(token)[0].pos_ in ['NOUN', 'VERB']}
-        length = len(out)
-        topn += 10
+        n += 10
     
     if len(out) > 100:
         out = dict(sorted(out.items(), key=lambda x: x[1], reverse=True)[:topn])
