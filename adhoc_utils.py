@@ -3,7 +3,7 @@ import math
 from transformers import BertTokenizer, BertForMaskedLM
 from torch.nn import functional as F
 import torch
-# from transformers import AutoModel, AutoTokenizer 
+from transformers import AutoModel, AutoTokenizer 
 from transformers import RobertaTokenizer, RobertaForMaskedLM
 # from transformers import logging
 
@@ -19,6 +19,7 @@ mask = tokenizer.mask_token
 import gensim.downloader
 glove_vectors = gensim.downloader.load('glove-twitter-25')
 
+
 def flatten_data(data, subdata):
     test = [[(x.lower().strip("(s)"), subdata[i][x]) for x in subdata[i]] for i in data if i in subdata] + [(i.lower().strip("(s)"), data[i]) for i in data if i not in subdata]
     return dict([i for sublist in test for i in sublist if type(sublist) == list] + [i for i in test if type(i) != list])
@@ -30,6 +31,9 @@ def get_mask(text, model_name='bert-base-uncased', topk=10, show=True, lemmatize
     if model_name == "bert-base-uncased": 
         tokenizer = BertTokenizer.from_pretrained(model_name)
         model = BertForMaskedLM.from_pretrained(model_name, return_dict = True)
+    elif model_name == "vinai/bertweet-base":
+        model = AutoModel.from_pretrained("vinai/bertweet-base")
+        tokenizer = AutoTokenizer.from_pretrained("vinai/bertweet-base", use_fast=False)
     elif model_name == "roberta-base":
         tokenizer = RobertaTokenizer.from_pretrained(model_name)
         model = RobertaForMaskedLM.from_pretrained(model_name, return_dict = True)
