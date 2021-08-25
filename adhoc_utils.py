@@ -5,6 +5,7 @@ from torch.nn import functional as F
 import torch
 from transformers import AutoModel, AutoTokenizer 
 from transformers import RobertaTokenizer, RobertaForMaskedLM
+from transformers import pipeline
 # from transformers import logging
 
 import spacy
@@ -27,13 +28,35 @@ def flatten_data(data, subdata):
 
 # Takes text containing "<MASK>" token and return topk results for masked token prediction.
 # print_results dictates whether to print filled sentences during function execution
-def get_mask(text, model_name='bert-base-uncased', topk=10, show=True, lemmatize=False):
+def get_mask(text, model='bert-base-uncased', topk=10, show=False, lemmatize=True):
+    if not "<MASK>" in text:
+        print("Text should contain \"<MASK>\" token")
+        print(text)
+        return False
+    
+    unmasker = pipeline('fill-mask', model=model)
+    text = text.replace("<MASK>", unmasker.tokenizer.mask_token)
+    unmasked = unmasker(text, topk=topk)
+    top_tokens = [(token['token_str'].replace(" ", ""), token['score']) for token in unmasked]
+    if show:
+        for token in unmasked[:min(5, topk)]:
+            print(token)
+    if lemmatize:
+        return [(wn.lemmatize(token), score) for (token, score) in top_tokens]
+    else:
+        return top_tokens
+    
+
+# !!! Old method, kept for reference !!!
+# Takes text containing "<MASK>" token and return topk results for masked token prediction.
+# print_results dictates whether to print filled sentences during function execution
+def get_mask_old(text, model_name='bert-base-uncased', topk=10, show=True, lemmatize=False):
     if model_name == "bert-base-uncased": 
         tokenizer = BertTokenizer.from_pretrained(model_name)
         model = BertForMaskedLM.from_pretrained(model_name, return_dict = True)
     elif model_name == "vinai/bertweet-base":
-        model = AutoModel.from_pretrained("vinai/bertweet-base")
-        tokenizer = AutoTokenizer.from_pretrained("vinai/bertweet-base", use_fast=False)
+        model = BertTokenizer.from_pretrained("vinai/bertweet-base")
+        tokenizer = BertForMaskedLM.from_pretrained("vinai/bertweet-base", return_dict = True)
     elif model_name == "roberta-base":
         tokenizer = RobertaTokenizer.from_pretrained(model_name)
         model = RobertaForMaskedLM.from_pretrained(model_name, return_dict = True)
@@ -196,7 +219,7 @@ def get_token_scores(sentence, model='BERT', topk=100, lemmatize=True):
     
 
 # Compares list of token scores from model responses with norms data
-def correct_responses(token_scores, category, data, limit = False):
+def correct_responses(token_scores, data, category, limit = False):
     responses = data[category]
     correct = []
     missing = []
