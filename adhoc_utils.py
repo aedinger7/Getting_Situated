@@ -28,7 +28,7 @@ def flatten_data(data, subdata):
 
 # Takes text containing "<MASK>" token and return topk results for masked token prediction.
 # print_results dictates whether to print filled sentences during function execution
-def get_mask(text, model='bert-base-uncased', topk=10, show=False, lemmatize=True):
+def get_mask(text, model='bert-base-uncased', topk=10, show=False, filter_pos=False, lemmatize=False):
     if not "<MASK>" in text:
         print("Text should contain \"<MASK>\" token")
         print(text)
@@ -38,14 +38,23 @@ def get_mask(text, model='bert-base-uncased', topk=10, show=False, lemmatize=Tru
     text = text.replace("<MASK>", unmasker.tokenizer.mask_token)
     unmasked = unmasker(text, topk=topk)
     top_tokens = [(token['token_str'].replace(" ", ""), token['score']) for token in unmasked]
-    if show:
-        for token in unmasked[:min(5, topk)]:
-            print(token)
+
+    if filter_pos:
+        top_tokens = [(token,score) for (token,score) in top_tokens if nlp(token)[0].pos_ in ['NOUN', 'VERB']]
+        k=topk
+        while(len(top_tokens) < topk):
+            k+=20
+            unmasked = unmasker(text, topk=k)
+            top_tokens = [(token['token_str'].replace(" ", ""), token['score']) for token in unmasked]
+            top_tokens = [(token,score) for (token,score) in top_tokens if nlp(token)[0].pos_ in ['NOUN', 'VERB']]
     if lemmatize:
-        return [(wn.lemmatize(token), score) for (token, score) in top_tokens]
-    else:
-        return top_tokens
+        top_tokens = [(wn.lemmatize(token), score) for (token, score) in top_tokens]
+    if show:
+        print(unmasked[:min(5, topk)])
+
     
+    return top_tokens[:topk]
+   
 
 # !!! Old method, kept for reference !!!
 # Takes text containing "<MASK>" token and return topk results for masked token prediction.
