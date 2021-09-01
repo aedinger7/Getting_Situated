@@ -36,18 +36,17 @@ def get_mask(text, model='bert-base-uncased', topk=10, show=False, filter_pos=Fa
     
     unmasker = pipeline('fill-mask', model=model)
     text = text.replace("<MASK>", unmasker.tokenizer.mask_token)
-    unmasked = unmasker(text, topk=topk)
+    unmasked = unmasker(text, top_k=topk)
     top_tokens = [(token['token_str'].replace(" ", ""), token['score']) for token in unmasked]
 
     if filter_pos:
-        top_tokens = [(token,score) for (token,score) in top_tokens if nlp(token)[0].pos_ in ['NOUN', 'VERB']]
+        top_tokens = [(token,score) for (token,score) in top_tokens if nlp(token)[0].pos_ in ['NOUN', 'VERB'] and len(token)>1]
         k=topk
         while(len(top_tokens) < topk):
-            print("k=",k,"topk=",topk,"len(top_tokens)=",len(top_tokens))
             k+=20
-            unmasked = unmasker(text, topk=k)
+            unmasked = unmasker(text, top_k=k)
             top_tokens = [(token['token_str'].replace(" ", ""), token['score']) for token in unmasked]
-            top_tokens = [(token,score) for (token,score) in top_tokens if nlp(token)[0].pos_ in ['NOUN', 'VERB']]
+            top_tokens = [(token,score) for (token,score) in top_tokens if nlp(token)[0].pos_ in ['NOUN', 'VERB'] and len(token)>1]
     if lemmatize:
         top_tokens = [(wn.lemmatize(token), score) for (token, score) in top_tokens]
     if show:
