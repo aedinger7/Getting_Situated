@@ -273,9 +273,8 @@ import re
 def w2v_pre(sentence):
     tokens = re.split('-| ', sentence.lower())
     tokens = [x.strip("():,.?").replace("\'", "") for x in tokens]
-    for item in ['<mask>', 'youve', '', 'theyll']:
-        if item in tokens:
-            tokens.remove(item)
+    removals = ['<mask>', 'youve', '', 'theyll']:
+    tokens = [token for token in tokens if token not in removals and len(token)>0]
             
     tokens = [x for x in tokens if nlp(x)[0].pos_ in ['NOUN', 'VERB', 'ADJ']]
             
@@ -288,10 +287,11 @@ def w2v_getn(sentence, topn=100, model=glove_vectors, lemmatize=True):
     out = {}
     n = topn
     while len(out) < topn:
+        out = {token:score for (token, score) in model.most_similar(tokens, topn=n) if len(token)>0}
         if lemmatize:
-            out = {wn.lemmatize(token):score for (token, score) in model.most_similar(tokens, topn=n) if nlp(token)[0].pos_ in ['NOUN', 'VERB']}
+            out = {wn.lemmatize(token):score for (token, score) in out if nlp(token)[0].pos_ in ['NOUN', 'VERB']}
         else:
-            out = {token:score for (token, score) in model.most_similar(tokens, topn=n) if nlp(token)[0].pos_ in ['NOUN', 'VERB']}
+            out = {token:score for (token, score) in out if nlp(token)[0].pos_ in ['NOUN', 'VERB']}
         n += 10
     
     if len(out) > 100:
