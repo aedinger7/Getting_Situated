@@ -38,6 +38,7 @@ def get_mask(text, model='bert-base-uncased', topk=10, show=False, filter_pos=Fa
     text = text.replace("<MASK>", unmasker.tokenizer.mask_token)
     unmasked = unmasker(text, top_k=topk)
     top_tokens = [(token['token_str'].replace(" ", ""), token['score']) for token in unmasked]
+    top_tokens = [(token,score) for (token,score) in top_tokens if len(token)>0]
 
     if filter_pos:
         top_tokens = [(token,score) for (token,score) in top_tokens if nlp(token)[0].pos_ in ['NOUN', 'VERB'] and len(token)>1]
