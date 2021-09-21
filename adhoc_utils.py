@@ -204,16 +204,16 @@ def dunlosky_masks():
     'a <MASK> is a thing women wear']
 
 
-# Returns token scores for sentence with cases based on mask phrase formats
+# Returns token scores for sentence with cases based on mask phrase formats for dunlosky taxonomic category norms
 def get_token_scores(sentence, model='BERT', topk=100, lemmatize=True):
-    if model=='BERT':
+    if model in ["vinai/bertweet-base", "bert-base-uncased", "roberta-base"]:
         if "a <MASK> is" in sentence:
             token_scores = {}
             phrases = ["a <MASK> is", "an <MASK> is", "<MASK> are"]
             k = int((topk/len(phrases)))
             while len(token_scores)<100:
                 for phrase in phrases:
-                    token_scores[phrase] = {token:score for (token, score) in get_mask(sentence.replace("a <MASK> is", phrase), show=False, topk=k, lemmatize=lemmatize) 
+                    token_scores[phrase] = {token:score for (token, score) in get_mask(sentence.replace("a <MASK> is", phrase), model=model, show=False, topk=k, lemmatize=lemmatize) 
                                             if nlp(token)[0].pos_ in ['NOUN', 'VERB']}
                 token_scores = dict_mean(token_scores[phrases[0]], token_scores[phrases[1]], token_scores[phrases[2]])
                 k+=10
@@ -224,11 +224,14 @@ def get_token_scores(sentence, model='BERT', topk=100, lemmatize=True):
             token_scores = {token:score for (token, score) in get_mask(sentence, topk=topk, show=False, lemmatize=lemmatize) 
                             if nlp(token)[0].pos_ in ['NOUN', 'VERB']}
             return token_scores
-    if model=='w2v':
+    if model in ['word2vec-google-news-300', 'glove-twitter-200', 'glove-wiki-gigaword-300']:
         return w2v_getn(sentence)
+    else:
+        print("Model not recognized")
+        return False
     
 
-# Compares list of token scores from model responses with norms data
+# Compares list of token scores from model responses with data from dunlosky taxonomic category norms
 def correct_responses(token_scores, data, category, limit = False):
     responses = data[category]
     correct = []
