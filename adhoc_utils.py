@@ -276,7 +276,7 @@ import re
 def w2v_pre(sentence):
     tokens = re.split('-| ', sentence.lower())
     tokens = [x.strip("():,.?").replace("\'", "") for x in tokens]
-    removals = ['<mask>', 'youve', '', 'theyll']:
+    removals = ['<mask>', 'youve', '', 'theyll']
     tokens = [token for token in tokens if token not in removals and len(token)>0]
             
     tokens = [x for x in tokens if nlp(x)[0].pos_ in ['NOUN', 'VERB', 'ADJ']]
