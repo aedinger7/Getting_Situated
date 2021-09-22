@@ -225,7 +225,7 @@ def get_token_scores(sentence, model='BERT', topk=100, lemmatize=True):
                             if nlp(token)[0].pos_ in ['NOUN', 'VERB']}
             return token_scores
     if model in ['word2vec-google-news-300', 'glove-twitter-200', 'glove-wiki-gigaword-300']:
-        return w2v_getn(sentence)
+        return w2v_getk(sentence, topk=topk, model=model)
     else:
         print("Model not recognized")
         return False
@@ -284,21 +284,22 @@ def w2v_pre(sentence):
     return tokens
 
 
-# Get topn similar tokens to sentence
-def w2v_getn(sentence, topn=100, model=glove_vectors, lemmatize=True):
+# Get top k similar tokens to sentence
+def w2v_getk(sentence, topk=100, model='glove-twitter-25', lemmatize=True):
+    model=gensim.downloader.load(model)
     tokens = w2v_pre(sentence)
     out = {}
-    n = topn
-    while len(out) < topn:
-        out = {token:score for (token, score) in model.most_similar(tokens, topn=n) if len(token)>0}
+    k = topk
+    while len(out) < topk:
+        out = [token for token in model.most_similar(tokens, topn=k) if len(token[0])>0]
         if lemmatize:
             out = {wn.lemmatize(token):score for (token, score) in out if nlp(token)[0].pos_ in ['NOUN', 'VERB']}
         else:
             out = {token:score for (token, score) in out if nlp(token)[0].pos_ in ['NOUN', 'VERB']}
-        n += 10
+        k += 10
     
     if len(out) > 100:
-        out = dict(sorted(out.items(), key=lambda x: x[1], reverse=True)[:topn])
+        out = dict(sorted(out.items(), key=lambda x: x[1], reverse=True)[:topk])
         
     return out
 
